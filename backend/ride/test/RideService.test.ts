@@ -260,4 +260,56 @@ describe('Ride service', () => {
       new Error('The ride is not requested')
     )
   })
+
+  test('Caso status da corrida diferente de "accepted" deve lançar um erro ao tentar iniciá-la', async () => {
+    const inputSignupPassenger: any = {
+      name: 'John Doe',
+      email: `john.doe${Math.random()}@gmail.com`,
+      cpf: '95818705552',
+      isPassenger: true
+    }
+    const outputSignupPassenger = await accountService.signup(
+      inputSignupPassenger
+    )
+    const inputRequestRide = {
+      passengerId: outputSignupPassenger.accountId,
+      ...coord
+    }
+    const outputRequestRide = await rideService.requestRide(inputRequestRide)
+    expect(
+      rideService.startRide(outputRequestRide.rideId)
+    ).rejects.toThrowError('The ride is not accepted')
+  })
+  test('deve iniciar uma corrida', async () => {
+    const inputSignupPassenger: any = {
+      name: 'John Doe',
+      email: `john.doe${Math.random()}@gmail.com`,
+      cpf: '95818705552',
+      isPassenger: true
+    }
+    const outputSignupPassenger = await accountService.signup(
+      inputSignupPassenger
+    )
+    const inputRequestRide = {
+      passengerId: outputSignupPassenger.accountId,
+      ...coord
+    }
+    const outputRequestRide = await rideService.requestRide(inputRequestRide)
+    const inputSignupDriver: any = {
+      name: 'John Doe',
+      email: `john.doe${Math.random()}@gmail.com`,
+      cpf: '95818705552',
+      carPlate: 'AAA9999',
+      isDriver: true
+    }
+    const outputSignupDriver = await accountService.signup(inputSignupDriver)
+    const inputAcceptRide = {
+      rideId: outputRequestRide.rideId,
+      driverId: outputSignupDriver.accountId
+    }
+    await rideService.acceptRide(inputAcceptRide)
+    await rideService.startRide(outputRequestRide.rideId)
+    const outputGetRide = await rideService.getRide(outputRequestRide.rideId)
+    expect(outputGetRide.status).toBe('in_progress')
+  })
 })

@@ -61,4 +61,13 @@ export class RideService {
     const ride = await this.rideDao.getById(rideId)
     return ride
   }
+
+  async startRide(rideId: string) {
+    const ride = await this.getRide(rideId)
+    if (ride.status !== 'accepted') throw new Error('The ride is not accepted')
+    ride.rideId = ride.ride_id
+    ride.driverId = ride.driver_id
+    ride.status = 'in_progress'
+    await this.rideDao.update(ride)
+  }
 }
