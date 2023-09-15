@@ -15,8 +15,7 @@ export class RideService {
 
   async requestRide(input: any) {
     const account = await this.accountDao.getById(input.passengerId)
-    if (!account) throw new Error('Passageiro não encontrado!')
-    if (!account.is_passenger) throw new Error('Não é passageiro!')
+    if (!account || !account.is_passenger) throw new Error('Não é passageiro!')
     const ridesNotCompleted = await this.rideDao.getActiveRidesByPassengerId(
       input.passengerId
     )
@@ -43,8 +42,7 @@ export class RideService {
 
   async acceptRide(input: any) {
     const account = await this.accountDao.getById(input.driverId)
-    if (!account) throw new Error('Motorista não encontrado!')
-    if (!account.is_driver) throw new Error('Não é motorista!')
+    if (!account || !account.is_driver) throw new Error('Não é motorista!')
     const ride = await this.getRide(input.rideId)
     if (ride.status !== 'requested')
       throw new Error('The ride is not requested')

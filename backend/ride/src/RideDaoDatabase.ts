@@ -8,65 +8,42 @@ export class RideDaoDatabase implements RideDao {
     this.connection = pgDatabase.getConnection()
   }
 
-  async save(data: RideDto): Promise<void> {
-    const {
-      rideId,
-      passengerId,
-      driverId,
-      status,
-      fare,
-      distance,
-      fromLat,
-      fromLong,
-      toLat,
-      toLong,
-      date
-    } = data
+  async save(ride: any): Promise<void> {
     await this.connection.query(
-      'insert into cccat13.ride (ride_id, passenger_id, driver_id, status, fare, distance, from_lat, from_long, to_lat, to_long, date) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+      'insert into cccat13.ride (ride_id, passenger_id, from_lat, from_long, to_lat, to_long, status, date) values ($1,$2,$3,$4,$5,$6,$7,$8)',
       [
-        rideId,
-        passengerId,
-        driverId,
-        status,
-        fare,
-        distance,
-        fromLat,
-        fromLong,
-        toLat,
-        toLong,
-        date
+        ride.rideId,
+        ride.passengerId,
+        ride.from.lat,
+        ride.from.long,
+        ride.to.lat,
+        ride.to.long,
+        ride.status,
+        ride.date
       ]
     )
   }
 
   async getActiveRidesByPassengerId(passengerId: string) {
-    const [rides] = await this.connection.query(
-      'select * from cccat13.ride where passenger_id = $1 and status != $2',
+    const rides = await this.connection.query(
+      "select * from cccat13.ride where passenger_id = $1 and status in ('requested', 'accepted', 'in_progress')",
       [passengerId, 'completed']
     )
-    if (!rides) return
-    if (rides && !Array.isArray(rides)) return rides
-    const mappedRides = rides.map((ride: any) => this.mapperToDto(ride))
-    return mappedRides
+    return rides
   }
 
   async getActiveRidesByDriverId(driverId: string) {
-    const [rides] = await this.connection.query(
-      "select * from cccat13.ride where passenger_id = $1 and status in ('accepted','in_progress')",
+    const rides = await this.connection.query(
+      "select * from cccat13.ride where driver_id = $1 and status in ('accepted','in_progress')",
       [driverId]
     )
-    if (!rides) return
-    if (rides && !Array.isArray(rides)) return rides
-    const mappedRides = rides.map((ride: any) => this.mapperToDto(ride))
-    return mappedRides
+    return rides
   }
 
   async getById(rideId: string): Promise<any> {
     const query = 'select * from cccat13.ride where ride_id = $1'
     const [ride] = await this.connection.query(query, [rideId])
-    if (!ride) return
-    return this.mapperToDto(ride)
+    return ride
   }
 
   async update(ride: any): Promise<void> {
@@ -75,34 +52,4 @@ export class RideDaoDatabase implements RideDao {
       [ride.driverId, ride.status, ride.rideId]
     )
   }
-
-  private mapperToDto(ride: any): RideDto {
-    return {
-      rideId: ride.ride_id,
-      passengerId: ride.passenger_id,
-      driverId: ride?.driver_id,
-      status: ride.status,
-      fare: ride.fare & Number(ride.fare),
-      distance: ride.distance & Number(ride.distance),
-      fromLat: Number(ride.from_lat),
-      fromLong: Number(ride.from_long),
-      toLat: Number(ride.to_lat),
-      toLong: Number(ride.to_long),
-      date: new Date(ride.date)
-    }
-  }
-}
-
-export type RideDto = {
-  rideId: string
-  passengerId: string
-  driverId?: string
-  status: string
-  fare?: number
-  distance?: number
-  fromLat: number
-  fromLong: number
-  toLat: number
-  toLong: number
-  date: Date
 }

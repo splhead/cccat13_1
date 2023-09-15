@@ -1,12 +1,27 @@
 import crypto from 'crypto'
-import { RideDao, RideDto } from '../src/RideDaoDatabase'
+import { RideDaoDatabase } from '../src/RideDaoDatabase'
 import { PgDatabase } from '../src/PgDatabase'
+import { RideDao } from '../src/RideDao'
 
 describe('RideDao', () => {
   let rideDao: RideDao
+  let coord: {
+    from: { lat: number; long: number }
+    to: { lat: number; long: number }
+  }
 
   beforeAll(() => {
-    rideDao = new RideDao(PgDatabase.getInstance())
+    rideDao = new RideDaoDatabase(PgDatabase.getInstance())
+    coord = {
+      from: {
+        lat: -27.584905257808835,
+        long: -48.545022195325124
+      },
+      to: {
+        lat: -27.496887588317275,
+        long: -48.522234807851476
+      }
+    }
   })
 
   afterAll(() => PgDatabase.disconnect())
@@ -18,36 +33,11 @@ describe('RideDao', () => {
       status: 'completed',
       fare: 10,
       distance: 55,
-      fromLat: 1,
-      fromLong: 12,
-      toLat: 5,
-      toLong: 13,
+      ...coord,
       date: new Date()
     }
     await rideDao.save(ride)
     const rideGot = await rideDao.getById(ride.rideId)
     expect(rideGot).toStrictEqual(ride)
-  })
-
-  test('deve apagar a corrida', async () => {
-    const ride = {
-      rideId: crypto.randomUUID(),
-      passengerId: crypto.randomUUID(),
-      driverId: crypto.randomUUID(),
-      status: 'requested',
-      fare: 10,
-      distance: 5,
-      fromLat: 1,
-      fromLong: 12,
-      toLat: 5,
-      toLong: 13,
-      date: new Date()
-    }
-    await rideDao.save(ride)
-    let rideGot = await rideDao.getById(ride.rideId)
-    expect(rideGot).toStrictEqual(ride)
-    await rideDao.delete(ride.rideId)
-    rideGot = await rideDao.getById(ride.rideId)
-    expect(rideGot).toBeUndefined()
   })
 })
