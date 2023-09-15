@@ -1,52 +1,66 @@
 import crypto from 'crypto'
-import { AccountDao } from './AccountDao'
+import { AccountDaoDatabase } from './AccountDaoDatabase'
 import { PgDatabase } from './PgDatabase'
+import { RideDaoDatabase } from './RideDaoDatabase'
+import { AccountDao } from './AccountDao'
 import { RideDao } from './RideDao'
 
-export type Coord = {
-  lat: number
-  long: number
-}
-
 export class RideService {
-  accountDao: AccountDao
-  rideDao: RideDao
+  constructor(
+    readonly rideDao: RideDao = new RideDaoDatabase(PgDatabase.getInstance()),
+    readonly accountDao: AccountDao = new AccountDaoDatabase(
+      PgDatabase.getInstance()
+    )
+  ) {}
 
-  constructor(pgDatabase: PgDatabase) {
-    this.accountDao = new AccountDao(pgDatabase)
-    this.rideDao = new RideDao(pgDatabase)
-  }
-
-  async requestRide(accountId: string, from: Coord, to: Coord) {
-    const account = await this.accountDao.get(accountId)
+  async requestRide(input: any) {
+    const account = await this.accountDao.getById(input.passengerId)
     if (!account) throw new Error('Passageiro não encontrado!')
     if (!account.is_passenger) throw new Error('Não é passageiro!')
-    const ridesNotCompleted =
-      await this.rideDao.getRidesNotCompletedByPassengerId(accountId)
+    const ridesNotCompleted = await this.rideDao.getActiveRidesByPassengerId(
+      input.passengerId
+    )
     if (ridesNotCompleted?.length > 0)
       throw new Error('Já existe uma corrida em andamento!')
     const rideId = crypto.randomUUID()
     const ride = {
       rideId,
-      passengerId: accountId,
+      passengerId: input.passengerId,
       status: 'requested',
-      fromLat: from.lat,
-      fromLong: from.long,
-      toLat: to.lat,
-      toLong: to.long,
-      date: new Date()
+      date: new Date(),
+      from: {
+        lat: input.from.lat,
+        long: input.from.long
+      },
+      to: {
+        lat: input.to.lat,
+        long: input.to.long
+      }
     }
-    await this.rideDao.create(ride)
-    return { ride_id: rideId }
+    await this.rideDao.save(ride)
+    return { rideId }
   }
 
-  async acceptRide(accountId: string) {
-    const account = await this.accountDao.get(accountId)
+  async acceptRide(input: any) {
+    const account = await this.accountDao.getById(input.driverId)
     if (!account) throw new Error('Motorista não encontrado!')
     if (!account.is_driver) throw new Error('Não é motorista!')
+    const ride = await this.getRide(input.rideId)
+    if (ride.status !== 'requested')
+      throw new Error('The ride is not requested')
     const ridesAcceptedOrInProgress =
-      await this.rideDao.getRidesNotCompletedByDriverId(accountId)
-    if (ridesAcceptedOrInProgress)
+      await this.rideDao.getActiveRidesByDriverId(input.driverId)
+    if (ridesAcceptedOrInProgress?.length > 0)
       throw new Error('Motorista com outra corrida em andamento!')
+    ride.rideId = input.rideId
+    ride.driverId = input.driverId
+    ride.status = 'accepted'
+    await this.rideDao.update(ride)
+    return { rideId: ride.rideId }
+  }
+
+  async getRide(rideId: string) {
+    const ride = await this.rideDao.getById(rideId)
+    return ride
   }
 }

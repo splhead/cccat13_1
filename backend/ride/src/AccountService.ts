@@ -1,26 +1,28 @@
 import crypto from 'crypto'
 import { CpfValidator } from './CpfValidator'
-import { AccountDao } from './AccountDao'
+import { AccountDaoDatabase } from './AccountDaoDatabase'
 import { PgDatabase } from './PgDatabase'
+import { AccountDao } from './AccountDao'
+import { MailerGateway } from './MailerGateway'
 
 export class AccountService {
   cpfValidator: CpfValidator
-  accountDao: AccountDao
+  mailerGateway: MailerGateway
 
-  constructor(pgDatabase: PgDatabase) {
+  constructor(
+    readonly accountDao: AccountDao = new AccountDaoDatabase(
+      PgDatabase.getInstance()
+    )
+  ) {
     this.cpfValidator = new CpfValidator()
-    this.accountDao = new AccountDao(pgDatabase)
-  }
-
-  async sendEmail(email: string, subject: string, message: string) {
-    console.log(email, subject, message)
+    this.mailerGateway = new MailerGateway()
   }
 
   async signup(input: any) {
     const accountId = crypto.randomUUID()
     const verificationCode = crypto.randomUUID()
     const date = new Date()
-    const [existingAccount] = await this.accountDao.getByEmail(input.email)
+    const existingAccount = await this.accountDao.getByEmail(input.email)
     if (existingAccount) throw new Error('Account already exists')
     if (!input.name.match(/[a-zA-Z] [a-zA-Z]+/)) throw new Error('Invalid name')
     if (!input.email.match(/^(.+)@(.+)$/)) throw new Error('Invalid email')
@@ -28,7 +30,7 @@ export class AccountService {
     if (input.isDriver && !input.carPlate.match(/[A-Z]{3}[0-9]{4}/))
       throw new Error('Invalid plate')
     const { name, email, cpf, carPlate, isPassenger, isDriver } = input
-    await this.accountDao.create({
+    await this.accountDao.save({
       accountId,
       name,
       email,
@@ -40,8 +42,8 @@ export class AccountService {
       verified: false,
       verificationCode
     })
-    await this.sendEmail(
-      input.email,
+    await this.mailerGateway.send(
+      email,
       'Verification',
       `Please verify your code at first login ${verificationCode}`
     )
@@ -51,7 +53,7 @@ export class AccountService {
   }
 
   async getAccount(accountId: string) {
-    const account = await this.accountDao.get(accountId)
+    const account = await this.accountDao.getById(accountId)
     return account
   }
 }

@@ -1,10 +1,14 @@
+import sinon from 'sinon'
 import { AccountService } from '../src/AccountService'
 import { PgDatabase } from '../src/PgDatabase'
+import { MailerGateway } from '../src/MailerGateway'
+import { AccountDaoDatabase } from '../src/AccountDaoDatabase'
+import { AccountDaoMemory } from '../src/AccountDaoMemory'
 
 describe('Account service', () => {
   let accountService: AccountService
   beforeAll(() => {
-    accountService = new AccountService(PgDatabase.getInstance())
+    accountService = new AccountService()
   })
   afterAll(() => PgDatabase.disconnect())
   test('Deve criar um passageiro', async function () {
@@ -94,5 +98,95 @@ describe('Account service', () => {
     await expect(() => accountService.signup(input)).rejects.toThrow(
       new Error('Invalid plate')
     )
+  })
+
+  test('Deve criar um passageiro com stub', async function () {
+    const input: any = {
+      name: 'John Doe',
+      email: `john.doe${Math.random()}@gmail.com`,
+      cpf: '95818705552',
+      isPassenger: true
+    }
+    const stubSave = sinon.stub(AccountDaoDatabase.prototype, 'save').resolves()
+    const stubGetByEmail = sinon
+      .stub(AccountDaoDatabase.prototype, 'getByEmail')
+      .resolves()
+
+    const output = await accountService.signup(input)
+    input.account_id = output.accountId
+    const stubGetById = sinon
+      .stub(AccountDaoDatabase.prototype, 'getById')
+      .resolves(input)
+    const account = await accountService.getAccount(output.accountId)
+    expect(account.account_id).toBeDefined()
+    expect(account.name).toBe(input.name)
+    expect(account.email).toBe(input.email)
+    expect(account.cpf).toBe(input.cpf)
+    stubSave.restore()
+    stubGetByEmail.restore()
+    stubGetById.restore()
+  })
+
+  test('Deve criar um passageiro com spy', async function () {
+    const spy = sinon.spy(MailerGateway.prototype, 'send')
+    const input: any = {
+      name: 'John Doe',
+      email: `john.doe${Math.random()}@gmail.com`,
+      cpf: '95818705552',
+      isPassenger: true
+    }
+    const stubSave = sinon.stub(AccountDaoDatabase.prototype, 'save').resolves()
+    const stubGetByEmail = sinon
+      .stub(AccountDaoDatabase.prototype, 'getByEmail')
+      .resolves()
+    const output = await accountService.signup(input)
+    input.account_id = output.accountId
+    const stubGetById = sinon
+      .stub(AccountDaoDatabase.prototype, 'getById')
+      .resolves(input)
+    const account = await accountService.getAccount(output.accountId)
+    expect(spy.calledOnce).toBeTruthy()
+    expect(spy.calledWith(input.email, 'Verification')).toBeTruthy()
+    spy.restore()
+    stubSave.restore()
+    stubGetByEmail.restore()
+    stubGetById.restore()
+  })
+
+  test('Deve criar um passageiro com mock', async function () {
+    const input: any = {
+      name: 'John Doe',
+      email: `john.doe${Math.random()}@gmail.com`,
+      cpf: '95818705552',
+      isPassenger: true
+    }
+    const mock = sinon.mock(MailerGateway.prototype)
+    mock.expects('send').withArgs(input.email, 'Verification').calledOnce
+    const mockAccountDAO = sinon.mock(AccountDaoDatabase.prototype)
+    mockAccountDAO.expects('save').resolves()
+    mockAccountDAO.expects('getByEmail').resolves()
+    const output = await accountService.signup(input)
+    input.account_id = output.accountId
+    mockAccountDAO.expects('getById').resolves(input)
+    const account = await accountService.getAccount(output.accountId)
+    mock.verify()
+    mock.restore()
+  })
+
+  test('Deve criar um passageiro com fake', async function () {
+    const accountDao = new AccountDaoMemory()
+    const accountService = new AccountService(accountDao)
+    const input: any = {
+      name: 'John Doe',
+      email: `john.doe${Math.random()}@gmail.com`,
+      cpf: '95818705552',
+      isPassenger: true
+    }
+    const output = await accountService.signup(input)
+    const account = await accountService.getAccount(output.accountId)
+    expect(account.account_id).toBeDefined()
+    expect(account.name).toBe(input.name)
+    expect(account.email).toBe(input.email)
+    expect(account.cpf).toBe(input.cpf)
   })
 })

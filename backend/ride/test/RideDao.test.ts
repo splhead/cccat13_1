@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { RideDao, RideDto } from '../src/RideDao'
+import { RideDao, RideDto } from '../src/RideDaoDatabase'
 import { PgDatabase } from '../src/PgDatabase'
 
 describe('RideDao', () => {
@@ -24,8 +24,8 @@ describe('RideDao', () => {
       toLong: 13,
       date: new Date()
     }
-    await rideDao.create(ride)
-    const rideGot = await rideDao.get(ride.rideId)
+    await rideDao.save(ride)
+    const rideGot = await rideDao.getById(ride.rideId)
     expect(rideGot).toStrictEqual(ride)
   })
 
@@ -43,11 +43,11 @@ describe('RideDao', () => {
       toLong: 13,
       date: new Date()
     }
-    await rideDao.create(ride)
-    let rideGot = await rideDao.get(ride.rideId)
+    await rideDao.save(ride)
+    let rideGot = await rideDao.getById(ride.rideId)
     expect(rideGot).toStrictEqual(ride)
     await rideDao.delete(ride.rideId)
-    rideGot = await rideDao.get(ride.rideId)
+    rideGot = await rideDao.getById(ride.rideId)
     expect(rideGot).toBeUndefined()
   })
 })
