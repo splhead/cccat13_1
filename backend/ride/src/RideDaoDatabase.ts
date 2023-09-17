@@ -48,8 +48,8 @@ export class RideDaoDatabase implements RideDao {
 
   async update(ride: any): Promise<void> {
     await this.connection.query(
-      'update cccat13.ride set driver_id = $1, status = $2 where ride_id = $3',
-      [ride.driverId, ride.status, ride.rideId]
+      'update cccat13.ride set driver_id = $1, status = $2, distance = $3, fare = $4 where ride_id = $5',
+      [ride.driverId, ride.status, ride.distance, ride.fare, ride.rideId]
     )
   }
 }

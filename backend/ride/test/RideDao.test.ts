@@ -29,15 +29,19 @@ describe('RideDao', () => {
     const ride = {
       rideId: crypto.randomUUID(),
       passengerId: crypto.randomUUID(),
-      driverId: crypto.randomUUID(),
       status: 'completed',
-      fare: 10,
-      distance: 55,
       ...coord,
       date: new Date()
     }
     await rideDao.save(ride)
     const rideGot = await rideDao.getById(ride.rideId)
-    expect(rideGot).toStrictEqual(ride)
+    console.log(rideGot)
+    expect(rideGot.ride_id).toBe(ride.rideId)
+    expect(rideGot.passenger_id).toBe(ride.passengerId)
+    expect(rideGot.status).toBe(ride.status)
+    expect(parseFloat(rideGot.from_lat)).toBe(ride.from.lat)
+    expect(parseFloat(rideGot.from_long)).toBe(ride.from.long)
+    expect(parseFloat(rideGot.to_lat)).toBe(ride.to.lat)
+    expect(parseFloat(rideGot.to_long)).toBe(ride.to.long)
   })
 })

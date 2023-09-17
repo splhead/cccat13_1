@@ -14,16 +14,16 @@ describe('PositionDao', () => {
 
   test('deve salvar e buscar uma posição', async () => {
     const position = {
-      positionId: crypto.randomUUID(),
-      rideId: crypto.randomUUID(),
+      position_id: crypto.randomUUID(),
+      ride_id: crypto.randomUUID(),
       lat: -27.584905257808835,
       long: -48.545022195325124,
       date: new Date()
     }
     await positionDao.save(position)
-    const positionGet = await positionDao.getById(position.positionId)
-    expect(positionGet.position_id).toBe(position.positionId)
-    expect(positionGet.ride_id).toBe(position.rideId)
+    const positionGet = await positionDao.getById(position.position_id)
+    expect(positionGet.position_id).toBe(position.position_id)
+    expect(positionGet.ride_id).toBe(position.ride_id)
     expect(parseFloat(positionGet.lat)).toBe(position.lat)
     expect(parseFloat(positionGet.long)).toBe(position.long)
     expect(positionGet.date).toEqual(position.date)
