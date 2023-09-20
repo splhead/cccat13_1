@@ -4,6 +4,7 @@ import { AccountDaoDatabase } from './AccountDaoDatabase'
 import { PgDatabase } from './PgDatabase'
 import { AccountDao } from './AccountDao'
 import { MailerGateway } from './MailerGateway'
+import { Account } from './domain/entity/Account'
 
 export class AccountService {
   cpfValidator: CpfValidator
@@ -19,36 +20,25 @@ export class AccountService {
   }
 
   async signup(input: any) {
-    const accountId = crypto.randomUUID()
-    const verificationCode = crypto.randomUUID()
-    const date = new Date()
     const existingAccount = await this.accountDao.getByEmail(input.email)
     if (existingAccount) throw new Error('Account already exists')
-    if (!input.name.match(/[a-zA-Z] [a-zA-Z]+/)) throw new Error('Invalid name')
-    if (!input.email.match(/^(.+)@(.+)$/)) throw new Error('Invalid email')
-    if (!this.cpfValidator.validate(input.cpf)) throw new Error('Invalid cpf')
-    if (input.isDriver && !input.carPlate.match(/[A-Z]{3}[0-9]{4}/))
-      throw new Error('Invalid plate')
     const { name, email, cpf, carPlate, isPassenger, isDriver } = input
-    await this.accountDao.save({
-      accountId,
+    const account = Account.create(
       name,
       email,
       cpf,
-      carPlate,
       isPassenger,
       isDriver,
-      date,
-      verified: false,
-      verificationCode
-    })
+      carPlate
+    )
+    await this.accountDao.save(account)
     await this.mailerGateway.send(
       email,
       'Verification',
-      `Please verify your code at first login ${verificationCode}`
+      `Please verify your code at first login ${account.verificationCode}`
     )
     return {
-      accountId
+      accountId: account.accountId
     }
   }
 

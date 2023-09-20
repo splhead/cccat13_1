@@ -4,6 +4,7 @@ import { PgDatabase } from '../src/PgDatabase'
 import { MailerGateway } from '../src/MailerGateway'
 import { AccountDaoDatabase } from '../src/AccountDaoDatabase'
 import { AccountDaoMemory } from '../src/AccountDaoMemory'
+import { Account } from '../src/domain/entity/Account'
 
 describe('Account service', () => {
   let accountService: AccountService
@@ -20,10 +21,10 @@ describe('Account service', () => {
     }
     const output = await accountService.signup(input)
     const account = await accountService.getAccount(output.accountId)
-    expect(account.account_id).toBeDefined()
-    expect(account.name).toBe(input.name)
-    expect(account.email).toBe(input.email)
-    expect(account.cpf).toBe(input.cpf)
+    expect(account?.accountId).toBeDefined()
+    expect(account?.name).toBe(input.name)
+    expect(account?.email).toBe(input.email)
+    expect(account?.cpf).toBe(input.cpf)
   })
 
   test('Não deve criar um passageiro com cpf inválido', async function () {
@@ -116,12 +117,21 @@ describe('Account service', () => {
     input.account_id = output.accountId
     const stubGetById = sinon
       .stub(AccountDaoDatabase.prototype, 'getById')
-      .resolves(input)
+      .resolves(
+        Account.create(
+          input.name,
+          input.email,
+          input.cpf,
+          input.isPassenger,
+          false,
+          ''
+        )
+      )
     const account = await accountService.getAccount(output.accountId)
-    expect(account.account_id).toBeDefined()
-    expect(account.name).toBe(input.name)
-    expect(account.email).toBe(input.email)
-    expect(account.cpf).toBe(input.cpf)
+    expect(account?.accountId).toBeDefined()
+    expect(account?.name).toBe(input.name)
+    expect(account?.email).toBe(input.email)
+    expect(account?.cpf).toBe(input.cpf)
     stubSave.restore()
     stubGetByEmail.restore()
     stubGetById.restore()
@@ -143,7 +153,16 @@ describe('Account service', () => {
     input.account_id = output.accountId
     const stubGetById = sinon
       .stub(AccountDaoDatabase.prototype, 'getById')
-      .resolves(input)
+      .resolves(
+        Account.create(
+          input.name,
+          input.email,
+          input.cpf,
+          input.isPassenger,
+          false,
+          ''
+        )
+      )
     const account = await accountService.getAccount(output.accountId)
     expect(spy.calledOnce).toBeTruthy()
     expect(spy.calledWith(input.email, 'Verification')).toBeTruthy()
@@ -167,7 +186,18 @@ describe('Account service', () => {
     mockAccountDAO.expects('getByEmail').resolves()
     const output = await accountService.signup(input)
     input.account_id = output.accountId
-    mockAccountDAO.expects('getById').resolves(input)
+    mockAccountDAO
+      .expects('getById')
+      .resolves(
+        Account.create(
+          input.name,
+          input.email,
+          input.cpf,
+          input.isPassenger,
+          false,
+          ''
+        )
+      )
     const account = await accountService.getAccount(output.accountId)
     mock.verify()
     mock.restore()
@@ -184,9 +214,9 @@ describe('Account service', () => {
     }
     const output = await accountService.signup(input)
     const account = await accountService.getAccount(output.accountId)
-    expect(account.account_id).toBeDefined()
-    expect(account.name).toBe(input.name)
-    expect(account.email).toBe(input.email)
-    expect(account.cpf).toBe(input.cpf)
+    expect(account?.accountId).toBeDefined()
+    expect(account?.name).toBe(input.name)
+    expect(account?.email).toBe(input.email)
+    expect(account?.cpf).toBe(input.cpf)
   })
 })

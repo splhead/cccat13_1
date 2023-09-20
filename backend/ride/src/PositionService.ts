@@ -56,19 +56,14 @@ export class PositionService {
       return result
     }, 0)
     const fare = distance * 2.1
-    const finishedRide = {
-      rideId: ride.ride_id,
-      driverId: ride.driver_id,
-      distance,
-      fare,
-      status: 'completed'
-    }
-    await this.rideDao.update(finishedRide)
+
+    ride.finish(distance, fare)
+    await this.rideDao.update(ride)
   }
 
   private async checkRideInProgress(rideId: string) {
     const ride = await this.rideDao.getById(rideId)
-    if (ride.status !== 'in_progress')
+    if (ride.getStatus() !== 'in_progress')
       throw new Error('The ride is not in progress')
     return ride
   }

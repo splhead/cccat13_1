@@ -1,5 +1,7 @@
+import { Account } from './domain/entity/Account'
+
 export interface AccountDao {
-  save(data: any): Promise<void>
-  getByEmail(email: string): Promise<any>
-  getById(accountId: string): Promise<any>
+  save(account: Account): Promise<void>
+  getByEmail(email: string): Promise<Account | undefined>
+  getById(accountId: string): Promise<Account | undefined>
 }

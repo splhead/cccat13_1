@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { AccountDaoDatabase, AccountDto } from '../src/AccountDaoDatabase'
+import { AccountDaoDatabase } from '../src/AccountDaoDatabase'
 import { RideService } from '../src/RideService'
 
 import { PgDatabase } from '../src/PgDatabase'
@@ -7,6 +7,7 @@ import { RideDao } from '../src/RideDao'
 import { AccountDao } from '../src/AccountDao'
 import { RideDaoDatabase } from '../src/RideDaoDatabase'
 import { AccountService } from '../src/AccountService'
+import { Account } from '../src/domain/entity/Account'
 
 describe('Ride service', () => {
   let rideService: RideService
@@ -42,18 +43,20 @@ describe('Ride service', () => {
       rideService.requestRide({ passengerId: crypto.randomUUID(), ...coord })
     ).rejects.toThrowError('Não é passageiro!')
 
-    const driver: AccountDto = {
-      accountId: crypto.randomUUID(),
-      cpf: '14748857056',
-      name: 'Jonh Doe',
-      email: 'jonh@gas.co',
-      carPlate: 'AND1235',
-      isPassenger: false,
-      isDriver: true,
-      date: new Date(),
-      verified: true,
-      verificationCode: crypto.randomUUID()
-    }
+    const cpf = '14748857056'
+    const name = 'Jonh Doe'
+    const email = 'jonh@gas.co'
+    const carPlate = 'AND1235'
+    const isPassenger = false
+    const isDriver = true
+    const driver = Account.create(
+      name,
+      email,
+      cpf,
+      isPassenger,
+      isDriver,
+      carPlate
+    )
     await accountDao.save(driver)
     expect(
       rideService.requestRide({ passengerId: driver.accountId, ...coord })
@@ -79,17 +82,19 @@ describe('Ride service', () => {
   })
 
   test('Deve solicitar uma corrida e receber a rideId', async () => {
-    const passenger: AccountDto = {
-      accountId: crypto.randomUUID(),
-      cpf: '14748857056',
-      name: 'Jonh Doe',
-      email: 'jonh@gas.co',
-      isPassenger: true,
-      isDriver: false,
-      date: new Date(),
-      verified: true,
-      verificationCode: crypto.randomUUID()
-    }
+    const cpf = '14748857056'
+    const name = 'Jonh Doe'
+    const email = 'jonh@gas.co'
+    const isPassenger = true
+    const isDriver = false
+    const passenger = Account.create(
+      name,
+      email,
+      cpf,
+      isPassenger,
+      isDriver,
+      ''
+    )
     await accountDao.save(passenger)
     const { rideId } = await rideService.requestRide({
       passengerId: passenger.accountId,
@@ -112,12 +117,12 @@ describe('Ride service', () => {
     }
     const outputRequestRide = await rideService.requestRide(inputRequestRide)
     const outputGetRide = await rideService.getRide(outputRequestRide.rideId)
-    expect(outputGetRide.status).toBe('requested')
-    expect(outputGetRide.passenger_id).toBe(outputSignup.accountId)
-    expect(parseFloat(outputGetRide.from_lat)).toBe(inputRequestRide.from.lat)
-    expect(parseFloat(outputGetRide.from_long)).toBe(inputRequestRide.from.long)
-    expect(parseFloat(outputGetRide.to_lat)).toBe(inputRequestRide.to.lat)
-    expect(parseFloat(outputGetRide.to_long)).toBe(inputRequestRide.to.long)
+    expect(outputGetRide.getStatus()).toBe('requested')
+    expect(outputGetRide.passengerId).toBe(outputSignup.accountId)
+    expect(outputGetRide.fromLat).toBe(inputRequestRide.from.lat)
+    expect(outputGetRide.fromLong).toBe(inputRequestRide.from.long)
+    expect(outputGetRide.toLat).toBe(inputRequestRide.to.lat)
+    expect(outputGetRide.toLong).toBe(inputRequestRide.to.long)
     expect(outputGetRide.date).toBeDefined()
   })
   // test('não deve aceitar suas proprias corridas caso também seja passageiro', () => {})
@@ -125,18 +130,20 @@ describe('Ride service', () => {
     expect(rideService.acceptRide(crypto.randomUUID())).rejects.toThrowError(
       'Não é motorista!'
     )
-    const driver: AccountDto = {
-      accountId: crypto.randomUUID(),
-      cpf: '14748857056',
-      name: 'Jonh Doe',
-      email: 'jonh@gas.co',
-      carPlate: 'AND1235',
-      isPassenger: false,
-      isDriver: false,
-      date: new Date(),
-      verified: true,
-      verificationCode: crypto.randomUUID()
-    }
+    const cpf = '14748857056'
+    const name = 'Jonh Doe'
+    const email = 'jonh@gas.co'
+    const carPlate = 'AND1235'
+    const isPassenger = true
+    const isDriver = false
+    const driver = Account.create(
+      name,
+      email,
+      cpf,
+      isPassenger,
+      isDriver,
+      carPlate
+    )
     await accountDao.save(driver)
     await expect(() =>
       rideService.acceptRide({ driverId: driver.accountId })
@@ -224,8 +231,8 @@ describe('Ride service', () => {
     }
     await rideService.acceptRide(inputAcceptRide)
     const outputGetRide = await rideService.getRide(outputRequestRide.rideId)
-    expect(outputGetRide.status).toBe('accepted')
-    expect(outputGetRide.driver_id).toBe(outputSignupDriver.accountId)
+    expect(outputGetRide.getStatus()).toBe('accepted')
+    expect(outputGetRide.driverId).toBe(outputSignupDriver.accountId)
   })
 
   test('Não deve aceitar uma corrida se o status da corrida não for requested', async function () {
@@ -310,6 +317,6 @@ describe('Ride service', () => {
     await rideService.acceptRide(inputAcceptRide)
     await rideService.startRide(outputRequestRide.rideId)
     const outputGetRide = await rideService.getRide(outputRequestRide.rideId)
-    expect(outputGetRide.status).toBe('in_progress')
+    expect(outputGetRide.getStatus()).toBe('in_progress')
   })
 })

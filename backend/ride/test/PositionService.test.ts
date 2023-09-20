@@ -193,7 +193,7 @@ describe('Position Service', () => {
     await positionService.updatePosition(inputUpdatePosition3)
     await positionService.finishRide(outputRequestRide.rideId)
     const finishedRide = await rideService.getRide(outputRequestRide.rideId)
-    expect(finishedRide.status).toBe('completed')
+    expect(finishedRide.getStatus()).toBe('completed')
     expect(finishedRide.distance).toBeDefined()
     expect(finishedRide.fare).toBeDefined()
   })
