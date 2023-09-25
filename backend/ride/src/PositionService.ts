@@ -1,17 +1,19 @@
 import crypto from 'crypto'
-import { PgDatabase } from './PgDatabase'
-import { PositionDao } from './PositionDao'
-import { PositionDaoDatabase } from './PositionDaoDatabase'
-import { RideDao } from './RideDao'
-import { RideDaoDatabase } from './RideDaoDatabase'
-import { Coord } from './Coord'
-import { DistanceCalculator } from './DistancCalculator'
+import { PgDatabase } from './infra/database/PgDatabase'
+import { PositionDao } from './application/repository/PositionDao'
+import { PositionDaoDatabase } from './infra/repository/PositionDaoDatabase'
+import { RideDao } from './application/repository/RideDao'
+import { RideDaoDatabase } from './infra/repository/RideDaoDatabase'
+import { Coord } from './domain/value-object/Coord'
+import { DistanceCalculator } from './domain/DistanceCalculator'
 
 export class PositionService {
   constructor(
-    readonly rideDao: RideDao = new RideDaoDatabase(PgDatabase.getInstance()),
+    readonly rideDao: RideDao = new RideDaoDatabase(
+      PgDatabase.getInstance().getConnection()
+    ),
     readonly positionDao: PositionDao = new PositionDaoDatabase(
-      PgDatabase.getInstance()
+      PgDatabase.getInstance().getConnection()
     )
   ) {}
 

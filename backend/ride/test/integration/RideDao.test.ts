@@ -1,8 +1,8 @@
 import crypto from 'crypto'
-import { RideDaoDatabase } from '../src/RideDaoDatabase'
-import { PgDatabase } from '../src/PgDatabase'
-import { RideDao } from '../src/RideDao'
-import { Ride } from '../src/domain/entity/Ride'
+import { RideDaoDatabase } from '../../src/infra/repository/RideDaoDatabase'
+import { PgDatabase } from '../../src/infra/database/PgDatabase'
+import { RideDao } from '../../src/application/repository/RideDao'
+import { Ride } from '../../src/domain/entity/Ride'
 
 describe('RideDao', () => {
   let rideDao: RideDao
@@ -12,7 +12,7 @@ describe('RideDao', () => {
   }
 
   beforeAll(() => {
-    rideDao = new RideDaoDatabase(PgDatabase.getInstance())
+    rideDao = new RideDaoDatabase(PgDatabase.getInstance().getConnection())
     coord = {
       from: {
         lat: -27.584905257808835,

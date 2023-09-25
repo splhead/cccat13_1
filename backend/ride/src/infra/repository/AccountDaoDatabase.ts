@@ -1,13 +1,10 @@
-import { AccountDao } from './AccountDao'
-import { PgDatabase } from './PgDatabase'
-import { Account } from './domain/entity/Account'
+import { AccountDao } from '../../application/repository/AccountDao'
+import { PgDatabase } from '../database/PgDatabase'
+import { Account } from '../../domain/entity/Account'
+import { Connection } from '../database/Connection'
 
 export class AccountDaoDatabase implements AccountDao {
-  private connection: any
-
-  constructor(pgDatabase: PgDatabase) {
-    this.connection = pgDatabase.getConnection()
-  }
+  constructor(readonly connection: Connection) {}
 
   async save(account: Account): Promise<void> {
     await this.connection.query(

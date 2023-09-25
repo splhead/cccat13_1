@@ -1,12 +1,9 @@
-import { PgDatabase } from './PgDatabase'
-import { PositionDao } from './PositionDao'
+import { PgDatabase } from '../database/PgDatabase'
+import { PositionDao } from '../../application/repository/PositionDao'
+import { Connection } from '../database/Connection'
 
 export class PositionDaoDatabase implements PositionDao {
-  private connection: any
-
-  constructor(pgDatabase: PgDatabase) {
-    this.connection = pgDatabase.getConnection()
-  }
+  constructor(readonly connection: Connection) {}
 
   async save(position: any): Promise<void> {
     await this.connection.query(

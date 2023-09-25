@@ -1,9 +1,23 @@
-import { AccountService } from '../src/AccountService'
-import { PgDatabase } from '../src/PgDatabase'
-import { PositionService } from '../src/PositionService'
-import { RideService } from '../src/RideService'
+import { AccountDao } from '../../src/application/repository/AccountDao'
+import { RideDao } from '../../src/application/repository/RideDao'
+import { AcceptRide } from '../../src/application/usecase/AcceptRide'
+import { GetRide } from '../../src/application/usecase/GetRide'
+import { RequestRide } from '../../src/application/usecase/RequestRide'
+import { Signup } from '../../src/application/usecase/Signup'
+import { StartRide } from '../../src/application/usecase/StartRide'
+import { PgDatabase } from '../../src/infra/database/PgDatabase'
+import { AccountDaoDatabase } from '../../src/infra/repository/AccountDaoDatabase'
+import { RideDaoDatabase } from '../../src/infra/repository/RideDaoDatabase'
+import { PositionService } from '../../src/PositionService'
 
 describe('Position Service', () => {
+  let accountDao: AccountDao
+  let rideDao: RideDao
+  let signup: Signup
+  let requestRide: RequestRide
+  let acceptRide: AcceptRide
+  let startRide: StartRide
+  let getRide: GetRide
   let coord: {
     from: { lat: number; long: number }
     to: { lat: number; long: number }
@@ -11,6 +25,15 @@ describe('Position Service', () => {
   let positionService: PositionService
 
   beforeEach(() => {
+    accountDao = new AccountDaoDatabase(
+      PgDatabase.getInstance().getConnection()
+    )
+    rideDao = new RideDaoDatabase(PgDatabase.getInstance().getConnection())
+    signup = new Signup(accountDao)
+    requestRide = new RequestRide(accountDao, rideDao)
+    acceptRide = new AcceptRide(accountDao, rideDao)
+    startRide = new StartRide(rideDao)
+    getRide = new GetRide(rideDao)
     coord = {
       from: {
         lat: -27.584905257808835,
@@ -32,16 +55,12 @@ describe('Position Service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const accountService = new AccountService()
-    const outputSignupPassenger = await accountService.signup(
-      inputSignupPassenger
-    )
+    const outputSignupPassenger = await signup.execute(inputSignupPassenger)
     const inputRequestRide = {
       passengerId: outputSignupPassenger.accountId,
       ...coord
     }
-    const rideService = new RideService()
-    const outputRequestRide = await rideService.requestRide(inputRequestRide)
+    const outputRequestRide = await requestRide.execute(inputRequestRide)
     const inputSignupDriver: any = {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
@@ -49,12 +68,12 @@ describe('Position Service', () => {
       carPlate: 'AAA9999',
       isDriver: true
     }
-    const outputSignupDriver = await accountService.signup(inputSignupDriver)
+    const outputSignupDriver = await signup.execute(inputSignupDriver)
     const inputAcceptRide = {
       rideId: outputRequestRide.rideId,
       driverId: outputSignupDriver.accountId
     }
-    await rideService.acceptRide(inputAcceptRide)
+    await acceptRide.execute(inputAcceptRide)
     const inputUpdatePosition = {
       rideId: outputRequestRide.rideId,
       lat: 1,
@@ -72,16 +91,12 @@ describe('Position Service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const accountService = new AccountService()
-    const outputSignupPassenger = await accountService.signup(
-      inputSignupPassenger
-    )
+    const outputSignupPassenger = await signup.execute(inputSignupPassenger)
     const inputRequestRide = {
       passengerId: outputSignupPassenger.accountId,
       ...coord
     }
-    const rideService = new RideService()
-    const outputRequestRide = await rideService.requestRide(inputRequestRide)
+    const outputRequestRide = await requestRide.execute(inputRequestRide)
     const inputSignupDriver: any = {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
@@ -89,17 +104,17 @@ describe('Position Service', () => {
       carPlate: 'AAA9999',
       isDriver: true
     }
-    const outputSignupDriver = await accountService.signup(inputSignupDriver)
+    const outputSignupDriver = await signup.execute(inputSignupDriver)
     const inputAcceptRide = {
       rideId: outputRequestRide.rideId,
       driverId: outputSignupDriver.accountId
     }
-    await rideService.acceptRide(inputAcceptRide)
+    await acceptRide.execute(inputAcceptRide)
     const inputUpdatePosition = {
       rideId: outputRequestRide.rideId,
       ...coord.from
     }
-    await rideService.startRide(outputRequestRide.rideId)
+    await startRide.execute(outputRequestRide.rideId)
     const positon1 = await positionService.updatePosition(inputUpdatePosition)
     expect(positon1.position_id).toBeDefined()
     const positionGot = await positionService.getPosition(positon1.position_id)
@@ -116,16 +131,12 @@ describe('Position Service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const accountService = new AccountService()
-    const outputSignupPassenger = await accountService.signup(
-      inputSignupPassenger
-    )
+    const outputSignupPassenger = await signup.execute(inputSignupPassenger)
     const inputRequestRide = {
       passengerId: outputSignupPassenger.accountId,
       ...coord
     }
-    const rideService = new RideService()
-    const outputRequestRide = await rideService.requestRide(inputRequestRide)
+    const outputRequestRide = await requestRide.execute(inputRequestRide)
     const inputSignupDriver: any = {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
@@ -133,12 +144,12 @@ describe('Position Service', () => {
       carPlate: 'AAA9999',
       isDriver: true
     }
-    const outputSignupDriver = await accountService.signup(inputSignupDriver)
+    const outputSignupDriver = await signup.execute(inputSignupDriver)
     const inputAcceptRide = {
       rideId: outputRequestRide.rideId,
       driverId: outputSignupDriver.accountId
     }
-    await rideService.acceptRide(inputAcceptRide)
+    await acceptRide.execute(inputAcceptRide)
     expect(
       positionService.finishRide(outputRequestRide.rideId)
     ).rejects.toThrowError('The ride is not in progress')
@@ -151,16 +162,12 @@ describe('Position Service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const accountService = new AccountService()
-    const outputSignupPassenger = await accountService.signup(
-      inputSignupPassenger
-    )
+    const outputSignupPassenger = await signup.execute(inputSignupPassenger)
     const inputRequestRide = {
       passengerId: outputSignupPassenger.accountId,
       ...coord
     }
-    const rideService = new RideService()
-    const outputRequestRide = await rideService.requestRide(inputRequestRide)
+    const outputRequestRide = await requestRide.execute(inputRequestRide)
     const inputSignupDriver: any = {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
@@ -168,13 +175,13 @@ describe('Position Service', () => {
       carPlate: 'AAA9999',
       isDriver: true
     }
-    const outputSignupDriver = await accountService.signup(inputSignupDriver)
+    const outputSignupDriver = await signup.execute(inputSignupDriver)
     const inputAcceptRide = {
       rideId: outputRequestRide.rideId,
       driverId: outputSignupDriver.accountId
     }
-    await rideService.acceptRide(inputAcceptRide)
-    await rideService.startRide(outputRequestRide.rideId)
+    await acceptRide.execute(inputAcceptRide)
+    await startRide.execute(outputRequestRide.rideId)
     const inputUpdatePosition1 = {
       rideId: outputRequestRide.rideId,
       ...coord.from
@@ -192,7 +199,7 @@ describe('Position Service', () => {
     }
     await positionService.updatePosition(inputUpdatePosition3)
     await positionService.finishRide(outputRequestRide.rideId)
-    const finishedRide = await rideService.getRide(outputRequestRide.rideId)
+    const finishedRide = await getRide.execute(outputRequestRide.rideId)
     expect(finishedRide.getStatus()).toBe('completed')
     expect(finishedRide.distance).toBeDefined()
     expect(finishedRide.fare).toBeDefined()

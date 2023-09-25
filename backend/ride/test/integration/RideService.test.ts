@@ -1,29 +1,39 @@
 import crypto from 'crypto'
-import { AccountDaoDatabase } from '../src/AccountDaoDatabase'
-import { RideService } from '../src/RideService'
-
-import { PgDatabase } from '../src/PgDatabase'
-import { RideDao } from '../src/RideDao'
-import { AccountDao } from '../src/AccountDao'
-import { RideDaoDatabase } from '../src/RideDaoDatabase'
-import { AccountService } from '../src/AccountService'
-import { Account } from '../src/domain/entity/Account'
+import { PgDatabase } from '../../src/infra/database/PgDatabase'
+import { RideDao } from '../../src/application/repository/RideDao'
+import { AccountDao } from '../../src/application/repository/AccountDao'
+import { RideDaoDatabase } from '../../src/infra/repository/RideDaoDatabase'
+import { Account } from '../../src/domain/entity/Account'
+import { RequestRide } from '../../src/application/usecase/RequestRide'
+import { AccountDaoDatabase } from '../../src/infra/repository/AccountDaoDatabase'
+import { Signup } from '../../src/application/usecase/Signup'
+import { GetRide } from '../../src/application/usecase/GetRide'
+import { AcceptRide } from '../../src/application/usecase/AcceptRide'
+import { StartRide } from '../../src/application/usecase/StartRide'
 
 describe('Ride service', () => {
-  let rideService: RideService
-  let accountService: AccountService
   let rideDao: RideDao
   let accountDao: AccountDao
+  let requestRide: RequestRide
+  let getRide: GetRide
+  let acceptRide: AcceptRide
+  let startRide: StartRide
+  let signup: Signup
   let coord: {
     from: { lat: number; long: number }
     to: { lat: number; long: number }
   }
 
   beforeEach(() => {
-    rideService = new RideService()
-    accountService = new AccountService()
-    accountDao = new AccountDaoDatabase(PgDatabase.getInstance())
-    rideDao = new RideDaoDatabase(PgDatabase.getInstance())
+    accountDao = new AccountDaoDatabase(
+      PgDatabase.getInstance().getConnection()
+    )
+    rideDao = new RideDaoDatabase(PgDatabase.getInstance().getConnection())
+    requestRide = new RequestRide(accountDao, rideDao)
+    signup = new Signup(accountDao)
+    getRide = new GetRide(rideDao)
+    acceptRide = new AcceptRide(accountDao, rideDao)
+    startRide = new StartRide(rideDao)
     coord = {
       from: {
         lat: -27.584905257808835,
@@ -40,7 +50,7 @@ describe('Ride service', () => {
 
   test('Caso uma corrida seja solicitada por uma conta que não seja de passageiro deve lançar um erro', async () => {
     expect(
-      rideService.requestRide({ passengerId: crypto.randomUUID(), ...coord })
+      requestRide.execute({ passengerId: crypto.randomUUID(), ...coord })
     ).rejects.toThrowError('Não é passageiro!')
 
     const cpf = '14748857056'
@@ -59,7 +69,7 @@ describe('Ride service', () => {
     )
     await accountDao.save(driver)
     expect(
-      rideService.requestRide({ passengerId: driver.accountId, ...coord })
+      requestRide.execute({ passengerId: driver.accountId, ...coord })
     ).rejects.toThrowError('Não é passageiro!')
   })
 
@@ -70,15 +80,15 @@ describe('Ride service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const outputSignup = await accountService.signup(inputSignup)
+    const outputSignup = await signup.execute(inputSignup)
     const inputRequestRide = {
       passengerId: outputSignup.accountId,
       ...coord
     }
-    await rideService.requestRide(inputRequestRide)
-    await expect(() =>
-      rideService.requestRide(inputRequestRide)
-    ).rejects.toThrow(new Error('Já existe uma corrida em andamento!'))
+    await requestRide.execute(inputRequestRide)
+    await expect(() => requestRide.execute(inputRequestRide)).rejects.toThrow(
+      new Error('Já existe uma corrida em andamento!')
+    )
   })
 
   test('Deve solicitar uma corrida e receber a rideId', async () => {
@@ -96,7 +106,7 @@ describe('Ride service', () => {
       ''
     )
     await accountDao.save(passenger)
-    const { rideId } = await rideService.requestRide({
+    const { rideId } = await requestRide.execute({
       passengerId: passenger.accountId,
       ...coord
     })
@@ -110,13 +120,13 @@ describe('Ride service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const outputSignup = await accountService.signup(inputSignup)
+    const outputSignup = await signup.execute(inputSignup)
     const inputRequestRide = {
       passengerId: outputSignup.accountId,
       ...coord
     }
-    const outputRequestRide = await rideService.requestRide(inputRequestRide)
-    const outputGetRide = await rideService.getRide(outputRequestRide.rideId)
+    const outputRequestRide = await requestRide.execute(inputRequestRide)
+    const outputGetRide = await getRide.execute(outputRequestRide.rideId)
     expect(outputGetRide.getStatus()).toBe('requested')
     expect(outputGetRide.passengerId).toBe(outputSignup.accountId)
     expect(outputGetRide.fromLat).toBe(inputRequestRide.from.lat)
@@ -127,9 +137,12 @@ describe('Ride service', () => {
   })
   // test('não deve aceitar suas proprias corridas caso também seja passageiro', () => {})
   test('não deve aceitar a corrida caso não seja motorista', async () => {
-    expect(rideService.acceptRide(crypto.randomUUID())).rejects.toThrowError(
-      'Não é motorista!'
-    )
+    expect(
+      acceptRide.execute({
+        driverId: crypto.randomUUID(),
+        rideId: crypto.randomUUID()
+      })
+    ).rejects.toThrowError('Não é motorista!')
     const cpf = '14748857056'
     const name = 'Jonh Doe'
     const email = 'jonh@gas.co'
@@ -146,7 +159,10 @@ describe('Ride service', () => {
     )
     await accountDao.save(driver)
     await expect(() =>
-      rideService.acceptRide({ driverId: driver.accountId })
+      acceptRide.execute({
+        driverId: driver.accountId,
+        rideId: crypto.randomUUID()
+      })
     ).rejects.toThrowError('Não é motorista!')
   })
 
@@ -157,9 +173,7 @@ describe('Ride service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const outputSignupPassenger1 = await accountService.signup(
-      inputSignupPassenger1
-    )
+    const outputSignupPassenger1 = await signup.execute(inputSignupPassenger1)
     const inputRequestRide1 = {
       passengerId: outputSignupPassenger1.accountId,
       ...coord
@@ -170,15 +184,13 @@ describe('Ride service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const outputSignupPassenger2 = await accountService.signup(
-      inputSignupPassenger2
-    )
+    const outputSignupPassenger2 = await signup.execute(inputSignupPassenger2)
     const inputRequestRide2 = {
       passengerId: outputSignupPassenger2.accountId,
       ...coord
     }
-    const outputRequestRide1 = await rideService.requestRide(inputRequestRide1)
-    const outputRequestRide2 = await rideService.requestRide(inputRequestRide2)
+    const outputRequestRide1 = await requestRide.execute(inputRequestRide1)
+    const outputRequestRide2 = await requestRide.execute(inputRequestRide2)
 
     const inputSignupDriver: any = {
       name: 'John Doe',
@@ -187,7 +199,7 @@ describe('Ride service', () => {
       carPlate: 'AAA9999',
       isDriver: true
     }
-    const outputSignupDriver = await accountService.signup(inputSignupDriver)
+    const outputSignupDriver = await signup.execute(inputSignupDriver)
     const inputAcceptRide1 = {
       rideId: outputRequestRide1.rideId,
       driverId: outputSignupDriver.accountId
@@ -196,10 +208,10 @@ describe('Ride service', () => {
       rideId: outputRequestRide2.rideId,
       driverId: outputSignupDriver.accountId
     }
-    await rideService.acceptRide(inputAcceptRide1)
-    await expect(() =>
-      rideService.acceptRide(inputAcceptRide2)
-    ).rejects.toThrow('Motorista com outra corrida em andamento!')
+    await acceptRide.execute(inputAcceptRide1)
+    await expect(() => acceptRide.execute(inputAcceptRide2)).rejects.toThrow(
+      'Motorista com outra corrida em andamento!'
+    )
   })
 
   test('Deve solicitar uma corrida e aceitar uma corrida', async function () {
@@ -209,14 +221,12 @@ describe('Ride service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const outputSignupPassenger = await accountService.signup(
-      inputSignupPassenger
-    )
+    const outputSignupPassenger = await signup.execute(inputSignupPassenger)
     const inputRequestRide = {
       passengerId: outputSignupPassenger.accountId,
       ...coord
     }
-    const outputRequestRide = await rideService.requestRide(inputRequestRide)
+    const outputRequestRide = await requestRide.execute(inputRequestRide)
     const inputSignupDriver: any = {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
@@ -224,13 +234,13 @@ describe('Ride service', () => {
       carPlate: 'AAA9999',
       isDriver: true
     }
-    const outputSignupDriver = await accountService.signup(inputSignupDriver)
+    const outputSignupDriver = await signup.execute(inputSignupDriver)
     const inputAcceptRide = {
       rideId: outputRequestRide.rideId,
       driverId: outputSignupDriver.accountId
     }
-    await rideService.acceptRide(inputAcceptRide)
-    const outputGetRide = await rideService.getRide(outputRequestRide.rideId)
+    await acceptRide.execute(inputAcceptRide)
+    const outputGetRide = await getRide.execute(outputRequestRide.rideId)
     expect(outputGetRide.getStatus()).toBe('accepted')
     expect(outputGetRide.driverId).toBe(outputSignupDriver.accountId)
   })
@@ -242,14 +252,12 @@ describe('Ride service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const outputSignupPassenger = await accountService.signup(
-      inputSignupPassenger
-    )
+    const outputSignupPassenger = await signup.execute(inputSignupPassenger)
     const inputRequestRide = {
       passengerId: outputSignupPassenger.accountId,
       ...coord
     }
-    const outputRequestRide = await rideService.requestRide(inputRequestRide)
+    const outputRequestRide = await requestRide.execute(inputRequestRide)
     const inputSignupDriver: any = {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
@@ -257,13 +265,13 @@ describe('Ride service', () => {
       carPlate: 'AAA9999',
       isDriver: true
     }
-    const outputSignupDriver = await accountService.signup(inputSignupDriver)
+    const outputSignupDriver = await signup.execute(inputSignupDriver)
     const inputAcceptRide = {
       rideId: outputRequestRide.rideId,
       driverId: outputSignupDriver.accountId
     }
-    await rideService.acceptRide(inputAcceptRide)
-    await expect(() => rideService.acceptRide(inputAcceptRide)).rejects.toThrow(
+    await acceptRide.execute(inputAcceptRide)
+    await expect(() => acceptRide.execute(inputAcceptRide)).rejects.toThrow(
       new Error('The ride is not requested')
     )
   })
@@ -275,17 +283,15 @@ describe('Ride service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const outputSignupPassenger = await accountService.signup(
-      inputSignupPassenger
-    )
+    const outputSignupPassenger = await signup.execute(inputSignupPassenger)
     const inputRequestRide = {
       passengerId: outputSignupPassenger.accountId,
       ...coord
     }
-    const outputRequestRide = await rideService.requestRide(inputRequestRide)
-    expect(
-      rideService.startRide(outputRequestRide.rideId)
-    ).rejects.toThrowError('The ride is not accepted')
+    const outputRequestRide = await requestRide.execute(inputRequestRide)
+    expect(startRide.execute(outputRequestRide.rideId)).rejects.toThrowError(
+      'The ride is not accepted'
+    )
   })
   test('deve iniciar uma corrida', async () => {
     const inputSignupPassenger: any = {
@@ -294,14 +300,12 @@ describe('Ride service', () => {
       cpf: '95818705552',
       isPassenger: true
     }
-    const outputSignupPassenger = await accountService.signup(
-      inputSignupPassenger
-    )
+    const outputSignupPassenger = await signup.execute(inputSignupPassenger)
     const inputRequestRide = {
       passengerId: outputSignupPassenger.accountId,
       ...coord
     }
-    const outputRequestRide = await rideService.requestRide(inputRequestRide)
+    const outputRequestRide = await requestRide.execute(inputRequestRide)
     const inputSignupDriver: any = {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
@@ -309,14 +313,14 @@ describe('Ride service', () => {
       carPlate: 'AAA9999',
       isDriver: true
     }
-    const outputSignupDriver = await accountService.signup(inputSignupDriver)
+    const outputSignupDriver = await signup.execute(inputSignupDriver)
     const inputAcceptRide = {
       rideId: outputRequestRide.rideId,
       driverId: outputSignupDriver.accountId
     }
-    await rideService.acceptRide(inputAcceptRide)
-    await rideService.startRide(outputRequestRide.rideId)
-    const outputGetRide = await rideService.getRide(outputRequestRide.rideId)
+    await acceptRide.execute(inputAcceptRide)
+    await startRide.execute(outputRequestRide.rideId)
+    const outputGetRide = await getRide.execute(outputRequestRide.rideId)
     expect(outputGetRide.getStatus()).toBe('in_progress')
   })
 })

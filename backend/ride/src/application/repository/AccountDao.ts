@@ -1,4 +1,4 @@
-import { Account } from './domain/entity/Account'
+import { Account } from '../../domain/entity/Account'
 
 export interface AccountDao {
   save(account: Account): Promise<void>

@@ -1,4 +1,4 @@
-import { AccountDao } from './AccountDao'
+import { AccountDao } from '../../application/repository/AccountDao'
 
 export class AccountDaoMemory implements AccountDao {
   accounts: any = []

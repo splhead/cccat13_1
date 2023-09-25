@@ -1,15 +1,16 @@
 import crypto from 'crypto'
-import { AccountDao } from '../src/AccountDao'
-import { AccountDaoDatabase } from '../src/AccountDaoDatabase'
-import { PgDatabase } from '../src/PgDatabase'
+import { AccountDao } from '../../src/application/repository/AccountDao'
+import { PgDatabase } from '../../src/infra/database/PgDatabase'
+import { AccountDaoDatabase } from '../../src/infra/repository/AccountDaoDatabase'
 
 describe('Account dao', () => {
   let accountDao: AccountDao
-  let pgDatabase: PgDatabase
   let account: any
+
   beforeEach(() => {
-    pgDatabase = PgDatabase.getInstance()
-    accountDao = new AccountDaoDatabase(pgDatabase)
+    accountDao = new AccountDaoDatabase(
+      PgDatabase.getInstance().getConnection()
+    )
     account = {
       accountId: crypto.randomUUID(),
       name: 'John Doe',

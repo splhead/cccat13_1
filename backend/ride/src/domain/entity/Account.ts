@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { CpfValidator } from '../../CpfValidator'
+import { CpfValidator } from '../CpfValidator'
 
 export class Account {
   private constructor(

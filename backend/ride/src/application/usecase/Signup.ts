@@ -1,25 +1,17 @@
-import crypto from 'crypto'
-import { CpfValidator } from './CpfValidator'
-import { AccountDaoDatabase } from './AccountDaoDatabase'
-import { PgDatabase } from './PgDatabase'
-import { AccountDao } from './AccountDao'
-import { MailerGateway } from './MailerGateway'
-import { Account } from './domain/entity/Account'
+import { AccountDao } from '../repository/AccountDao'
+import { CpfValidator } from '../../domain/CpfValidator'
+import { MailerGateway } from '../../infra/gateway/MailerGateway'
+import { Account } from '../../domain/entity/Account'
 
-export class AccountService {
+export class Signup {
   cpfValidator: CpfValidator
   mailerGateway: MailerGateway
 
-  constructor(
-    readonly accountDao: AccountDao = new AccountDaoDatabase(
-      PgDatabase.getInstance()
-    )
-  ) {
+  constructor(readonly accountDao: AccountDao) {
     this.cpfValidator = new CpfValidator()
     this.mailerGateway = new MailerGateway()
   }
-
-  async signup(input: any) {
+  async execute(input: Input) {
     const existingAccount = await this.accountDao.getByEmail(input.email)
     if (existingAccount) throw new Error('Account already exists')
     const { name, email, cpf, carPlate, isPassenger, isDriver } = input
@@ -41,9 +33,13 @@ export class AccountService {
       accountId: account.accountId
     }
   }
+}
 
-  async getAccount(accountId: string) {
-    const account = await this.accountDao.getById(accountId)
-    return account
-  }
+type Input = {
+  name: string
+  email: string
+  cpf: string
+  isPassenger: boolean
+  isDriver: boolean
+  carPlate: string
 }

@@ -1,13 +1,16 @@
 import crypto from 'crypto'
-import { PositionDao } from '../src/PositionDao'
-import { PositionDaoDatabase } from '../src/PositionDaoDatabase'
-import { PgDatabase } from '../src/PgDatabase'
+import { PositionDao } from '../../src/application/repository/PositionDao'
+
+import { PgDatabase } from '../../src/infra/database/PgDatabase'
+import { PositionDaoDatabase } from '../../src/infra/repository/PositionDaoDatabase'
 
 describe('PositionDao', () => {
   let positionDao: PositionDao
 
   beforeEach(() => {
-    positionDao = new PositionDaoDatabase(PgDatabase.getInstance())
+    positionDao = new PositionDaoDatabase(
+      PgDatabase.getInstance().getConnection()
+    )
   })
 
   afterAll(() => PgDatabase.disconnect())

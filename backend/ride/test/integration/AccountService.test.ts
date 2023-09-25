@@ -1,15 +1,26 @@
 import sinon from 'sinon'
-import { AccountService } from '../src/AccountService'
-import { PgDatabase } from '../src/PgDatabase'
-import { MailerGateway } from '../src/MailerGateway'
-import { AccountDaoDatabase } from '../src/AccountDaoDatabase'
-import { AccountDaoMemory } from '../src/AccountDaoMemory'
-import { Account } from '../src/domain/entity/Account'
+
+import { PgDatabase } from '../../src/infra/database/PgDatabase'
+import { MailerGateway } from '../../src/infra/gateway/MailerGateway'
+
+import { Account } from '../../src/domain/entity/Account'
+import { Signup } from '../../src/application/usecase/Signup'
+import { AccountDao } from '../../src/application/repository/AccountDao'
+import { AccountDaoDatabase } from '../../src/infra/repository/AccountDaoDatabase'
+import { GetAccount } from '../../src/application/usecase/GetAccount'
+import { AccountDaoMemory } from '../../src/infra/repository/AccountDaoMemory'
 
 describe('Account service', () => {
-  let accountService: AccountService
+  let accountDao: AccountDao
+  let signup: Signup
+  let getAccount: GetAccount
+
   beforeAll(() => {
-    accountService = new AccountService()
+    accountDao = new AccountDaoDatabase(
+      PgDatabase.getInstance().getConnection()
+    )
+    signup = new Signup(accountDao)
+    getAccount = new GetAccount(accountDao)
   })
   afterAll(() => PgDatabase.disconnect())
   test('Deve criar um passageiro', async function () {
@@ -17,10 +28,12 @@ describe('Account service', () => {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
       cpf: '95818705552',
-      isPassenger: true
+      isPassenger: true,
+      isDriver: false,
+      carPlate: ''
     }
-    const output = await accountService.signup(input)
-    const account = await accountService.getAccount(output.accountId)
+    const output = await signup.execute(input)
+    const account = await getAccount.execute(output.accountId)
     expect(account?.accountId).toBeDefined()
     expect(account?.name).toBe(input.name)
     expect(account?.email).toBe(input.email)
@@ -31,10 +44,12 @@ describe('Account service', () => {
     const input = {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
-      cpf: '95818705500',
-      isPassenger: true
+      cpf: '95818705555',
+      isPassenger: true,
+      isDriver: false,
+      carPlate: ''
     }
-    await expect(() => accountService.signup(input)).rejects.toThrow(
+    await expect(() => signup.execute(input)).rejects.toThrow(
       new Error('Invalid cpf')
     )
   })
@@ -44,9 +59,11 @@ describe('Account service', () => {
       name: 'John',
       email: `john.doe${Math.random()}@gmail.com`,
       cpf: '95818705552',
-      isPassenger: true
+      isPassenger: true,
+      isDriver: false,
+      carPlate: ''
     }
-    await expect(() => accountService.signup(input)).rejects.toThrow(
+    await expect(() => signup.execute(input)).rejects.toThrow(
       new Error('Invalid name')
     )
   })
@@ -56,9 +73,11 @@ describe('Account service', () => {
       name: 'John Doe',
       email: `john.doe${Math.random()}@`,
       cpf: '95818705552',
-      isPassenger: true
+      isPassenger: true,
+      isDriver: false,
+      carPlate: ''
     }
-    await expect(() => accountService.signup(input)).rejects.toThrow(
+    await expect(() => signup.execute(input)).rejects.toThrow(
       new Error('Invalid email')
     )
   })
@@ -68,10 +87,12 @@ describe('Account service', () => {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
       cpf: '95818705552',
-      isPassenger: true
+      isPassenger: true,
+      isDriver: false,
+      carPlate: ''
     }
-    await accountService.signup(input)
-    await expect(() => accountService.signup(input)).rejects.toThrow(
+    await signup.execute(input)
+    await expect(() => signup.execute(input)).rejects.toThrow(
       new Error('Account already exists')
     )
   })
@@ -82,9 +103,10 @@ describe('Account service', () => {
       email: `john.doe${Math.random()}@gmail.com`,
       cpf: '95818705552',
       carPlate: 'AAA9999',
-      isDriver: true
+      isDriver: true,
+      isPassenger: false
     }
-    const output = await accountService.signup(input)
+    const output = await signup.execute(input)
     expect(output.accountId).toBeDefined()
   })
 
@@ -94,9 +116,10 @@ describe('Account service', () => {
       email: `john.doe${Math.random()}@gmail.com`,
       cpf: '95818705552',
       carPlate: 'AAA999',
-      isDriver: true
+      isDriver: true,
+      isPassenger: false
     }
-    await expect(() => accountService.signup(input)).rejects.toThrow(
+    await expect(() => signup.execute(input)).rejects.toThrow(
       new Error('Invalid plate')
     )
   })
@@ -113,7 +136,7 @@ describe('Account service', () => {
       .stub(AccountDaoDatabase.prototype, 'getByEmail')
       .resolves()
 
-    const output = await accountService.signup(input)
+    const output = await signup.execute(input)
     input.account_id = output.accountId
     const stubGetById = sinon
       .stub(AccountDaoDatabase.prototype, 'getById')
@@ -127,7 +150,7 @@ describe('Account service', () => {
           ''
         )
       )
-    const account = await accountService.getAccount(output.accountId)
+    const account = await getAccount.execute(output.accountId)
     expect(account?.accountId).toBeDefined()
     expect(account?.name).toBe(input.name)
     expect(account?.email).toBe(input.email)
@@ -149,7 +172,7 @@ describe('Account service', () => {
     const stubGetByEmail = sinon
       .stub(AccountDaoDatabase.prototype, 'getByEmail')
       .resolves()
-    const output = await accountService.signup(input)
+    const output = await signup.execute(input)
     input.account_id = output.accountId
     const stubGetById = sinon
       .stub(AccountDaoDatabase.prototype, 'getById')
@@ -163,7 +186,7 @@ describe('Account service', () => {
           ''
         )
       )
-    const account = await accountService.getAccount(output.accountId)
+    const account = await getAccount.execute(output.accountId)
     expect(spy.calledOnce).toBeTruthy()
     expect(spy.calledWith(input.email, 'Verification')).toBeTruthy()
     spy.restore()
@@ -184,7 +207,7 @@ describe('Account service', () => {
     const mockAccountDAO = sinon.mock(AccountDaoDatabase.prototype)
     mockAccountDAO.expects('save').resolves()
     mockAccountDAO.expects('getByEmail').resolves()
-    const output = await accountService.signup(input)
+    const output = await signup.execute(input)
     input.account_id = output.accountId
     mockAccountDAO
       .expects('getById')
@@ -198,22 +221,23 @@ describe('Account service', () => {
           ''
         )
       )
-    const account = await accountService.getAccount(output.accountId)
+    const account = await getAccount.execute(output.accountId)
     mock.verify()
     mock.restore()
   })
 
   test('Deve criar um passageiro com fake', async function () {
     const accountDao = new AccountDaoMemory()
-    const accountService = new AccountService(accountDao)
+    signup = new Signup(accountDao)
+    getAccount = new GetAccount(accountDao)
     const input: any = {
       name: 'John Doe',
       email: `john.doe${Math.random()}@gmail.com`,
       cpf: '95818705552',
       isPassenger: true
     }
-    const output = await accountService.signup(input)
-    const account = await accountService.getAccount(output.accountId)
+    const output = await signup.execute(input)
+    const account = await getAccount.execute(output.accountId)
     expect(account?.accountId).toBeDefined()
     expect(account?.name).toBe(input.name)
     expect(account?.email).toBe(input.email)

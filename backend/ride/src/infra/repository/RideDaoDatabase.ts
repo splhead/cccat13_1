@@ -1,13 +1,10 @@
-import { RideDao } from './RideDao'
-import { PgDatabase } from './PgDatabase'
-import { Ride } from './domain/entity/Ride'
+import { RideDao } from '../../application/repository/RideDao'
+import { PgDatabase } from '../database/PgDatabase'
+import { Ride } from '../../domain/entity/Ride'
+import { Connection } from '../database/Connection'
 
 export class RideDaoDatabase implements RideDao {
-  private connection: any
-
-  constructor(pgDatabase: PgDatabase) {
-    this.connection = pgDatabase.getConnection()
-  }
+  constructor(readonly connection: Connection) {}
 
   async save(ride: Ride): Promise<void> {
     await this.connection.query(

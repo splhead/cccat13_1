@@ -1,4 +1,4 @@
-import { Coord } from './Coord'
+import { Coord } from './value-object/Coord'
 
 export class DistanceCalculator {
   static calculate(from: Coord, to: Coord) {

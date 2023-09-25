@@ -1,4 +1,4 @@
-import { CpfValidator } from '../src/CpfValidator'
+import { CpfValidator } from '../../src/domain/CpfValidator'
 
 describe('Cpf validator', () => {
   test.each(['95818705552', '01234567890', '565.486.780-60', '147.864.110-00'])(
